@@ -97,3 +97,127 @@ void build_city()
   center[ncenter] = 9;  ncenter++;
   center[ncenter] = 11; ncenter++;
 }
+
+void dijkstra(int src)
+{
+  int i,u,d;
+  struct Edge *e;
+  for(i=0;i<MAX_NODES;i++){
+     dist[i] = INF;
+     parent[i] = -1;
+     done[i] = 0;
+  }
+  dist[src] = 0;
+  mh_init();
+  mh_push(0, src);
+
+  while(!mh_empty()){
+     mh_pop(&d, &u);
+     if(done[u]) continue;     /* old copy of this node, just skip it */
+     done[u] = 1;
+     e = adj[u];
+     while(e != NULL){
+         if(dist[u] + e->weight < dist[e->dest]){
+             dist[e->dest] = dist[u] + e->weight;
+             parent[e->dest] = u;
+             mh_push(dist[e->dest], e->dest);
+         }
+         e = e->next;
+     }
+  }
+}
+
+/* push every centre at distance 0 and run once.
+   then walk back from the victim, whoever we land on is the nearest centre */
+int nearest_center(int victim)
+{
+  int i,u,d,c;
+  struct Edge *e;
+  for(i=0;i<MAX_NODES;i++){
+     dist[i] = INF;
+     parent[i] = -1;
+     done[i] = 0;
+  }
+  mh_init();
+  for(i=0;i<ncenter;i++){
+      dist[center[i]] = 0;
+      mh_push(0, center[i]);
+  }
+
+  while(!mh_empty()){
+    mh_pop(&d, &u);
+    if(done[u]) continue;
+    done[u] = 1;
+    e = adj[u];
+    while(e != NULL){
+        if(dist[u] + e->weight < dist[e->dest]){
+            dist[e->dest] = dist[u] + e->weight;
+            parent[e->dest] = u;
+            mh_push(dist[e->dest], e->dest);
+        }
+        e = e->next;
+    }
+  }
+
+  if(dist[victim] >= INF) return -1;
+  c = victim;
+  while(parent[c] != -1)
+     c = parent[c];
+  return c;
+}
+
+int get_path(int dest, int out[])
+{
+  int tmp[MAX_NODES];
+  int n = 0;
+  int i,v;
+  if(dest < 0 || dest >= MAX_NODES) return 0;
+  if(dist[dest] >= INF) return 0;
+  v = dest;
+  while(v != -1){
+     tmp[n] = v;
+     n++;
+     v = parent[v];
+  }
+  /* tmp is dest..source so flip it */
+  for(i=0;i<n;i++)
+     out[i] = tmp[n-1-i];
+  return n;
+}
+
+void print_path(int dest)
+{
+  int p[MAX_NODES];
+  int len,i;
+  len = get_path(dest, p);
+  if(len == 0){
+      printf(" no road reaches junction %d\n", dest);
+      return;
+  }
+  printf(" Route: ");
+  for(i=0;i<len;i++){
+     printf("%d", p[i]);
+     if(i < len-1) printf(" -> ");
+  }
+  printf("   (total %d min)\n", dist[dest]);
+}
+
+int get_dist(int n)
+{
+  return dist[n];
+}
+
+void graph_free()
+{
+  int i;
+  struct Edge *e,*t;
+  for(i=0;i<MAX_NODES;i++){
+     e = adj[i];
+     while(e != NULL){
+        t = e->next;
+        free(e);
+        e = t;
+     }
+     adj[i] = NULL;
+  }
+}
