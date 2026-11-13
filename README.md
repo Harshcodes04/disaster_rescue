@@ -1,31 +1,28 @@
 # Disaster Rescue Coordination System
 
-Data Structures PBL in C. Standard library only, no external libraries.
-Terminal pe chalta hai, menu-driven, saath mein live ASCII city map.
+A Data Structures PBL written in C. Standard library only, no external libraries.
+It runs in a terminal as a menu-driven program with a live ASCII city map.
 
-Ek earthquake ke baad ka control room — rescue requests aati hain, sabse critical
-victim ko pehle ambulance bheji jaati hai, aur Dijkstra sabse fast route nikalta hai.
+The program is a control room after an earthquake. Rescue requests come in, the most
+critical victim is always attended first, a free ambulance is assigned from a fixed
+fleet, and Dijkstra finds the fastest route from the nearest rescue centre.
 
-## Quick start
-
-```
-run
-```
-
-Bas. `run.bat` compile karke program chala deta hai.
-
-Manually karna ho to:
+## Build and run
 
 ```
 gcc main.c dispatch.c heap.c queue.c hash.c graph.c render.c -o rescue
 rescue.exe
 ```
 
-Linux / Mac pe `rescue.exe` ki jagah `./rescue`.
+On Linux or Mac use `./rescue` instead of `rescue.exe`.
+
+If you have `make` installed, `make` does the same thing. It is usually not
+installed on Windows, so the gcc line above is the reliable way.
 
 ## Test drivers
 
-Har module ka apna standalone test hai:
+Every module has its own standalone test, so each one can be checked without
+the rest of the system.
 
 ```
 gcc -Wall test_queue.c queue.c -o test_queue
@@ -35,10 +32,17 @@ gcc -Wall test_graph.c graph.c heap.c -o test_graph
 gcc -Wall test_render.c render.c graph.c heap.c -o test_render
 ```
 
-Phir `test_queue.exe`, `test_heap.exe` wagairah chala lo.
+Then run `test_queue.exe`, `test_heap.exe` and so on. `make tests` builds all five.
 
-Agar `make` installed hai to `make` aur `make tests` bhi kaam karta hai.
-Windows pe aksar nahi hota — upar wali gcc lines wahi kaam karti hain.
+What each one proves:
+
+| Test | What it checks |
+|---|---|
+| `test_queue` | fills and empties the queue, then pushes past the wrap point to show the indices cycle |
+| `test_heap` | pushes 10 mixed-severity requests and pops them in severity order, FIFO within equal severity |
+| `test_hash` | inserts 22 victims including deliberate collisions and finds every one |
+| `test_graph` | shortest paths from junction 0, and nearest-centre lookups |
+| `test_render` | draws the city with a hard-coded path, so it works without Dijkstra |
 
 ## Menu
 
@@ -55,23 +59,23 @@ Windows pe aksar nahi hota — upar wali gcc lines wahi kaam karti hain.
  0. exit
 ```
 
-## Demo ka order
+## Demo walkthrough
 
-1. `9` - 6 demo victims load karo
-2. `5` - pending heap dekho, index 0 pe critical hai (chahe wo pehle type na hua ho)
-3. `2` paanch baar - har dispatch pe route `#` se jal uthta hai, critical pehle jaate hain
-4. `6` - 0 free, saari 5 bahar, front/rear index hil chuke hain
-5. `2` - mana kar dega, aur bolega request heap se hatayi NAHI gayi
-6. `5` - proof ki request abhi bhi padi hai
-7. `3` phir `2` - ambulance wapas, rear index wrap hoke 0 pe
-8. `2` - ab aakhri victim ko wahi ambulance milti hai
-9. `4` -> `4002` - ek victim ka pura record
-10. `8` - poora table bucket ke saath (4001 aur 4012 dono bucket 8 mein)
+1. `9` loads six demo victims
+2. `5` shows the pending heap. Index 0 is the critical one even though it was not entered first
+3. `2` five times. Each dispatch lights the route up with `#` and the critical ones leave first
+4. `6` shows 0 free, all five out, and the front/rear indices have moved
+5. `2` again. It refuses and reports that the request was **not** taken off the heap
+6. `5` again proves the request is still waiting
+7. `3` then `2` brings an ambulance back. The rear index wraps around to 0
+8. `2` dispatches the last victim with the returned ambulance
+9. `4` then `4002` shows one victim's full record
+10. `8` shows the whole table with bucket numbers. 4001 and 4012 share bucket 8
 
-## City map
+## The city
 
-15 junctions, 22 two-way roads. Rescue centre 0, 9 aur 11 pe.
-Road pe likha number travel minutes hai, screen pe lambai nahi.
+15 junctions and 22 two-way roads. Rescue centres are at junctions 0, 9 and 11.
+The number printed on a road is travel minutes, not its length on screen.
 
 ```
    [R]------4------(1)------6------(2)------5------(3)-----7-----(4)
@@ -85,60 +89,65 @@ Road pe likha number travel minutes hai, screen pe lambai nahi.
   (10)------5------[R]------4-----(12)------9-----(13)-----3----(14)
 ```
 
-`[R]` rescue centre, `[V]` victim, `#` highlighted route.
+`[R]` is a rescue centre, `[V]` is the victim, `#` marks the highlighted route.
 
 ## Files
 
-| File | Kya hai |
+| File | Contents |
 |---|---|
-| `common.h` | shared constants, Request aur Victim structs, status enum |
-| `heap.h/.c` | max-heap (requests) + min-heap (Dijkstra ke liye) |
-| `queue.h/.c` | circular queue of free ambulances |
-| `hash.h/.c` | victim table, chaining se collisions |
-| `graph.h/.c` | adjacency list, Dijkstra, nearest rescue centre |
-| `render.h/.c` | ASCII city map canvas |
-| `dispatch.c` | menu actions aur pura dispatch cycle |
+| `common.h` | shared constants, the Request and Victim structs, status enum |
+| `heap.h` / `heap.c` | max-heap for requests, plus the min-heap Dijkstra uses |
+| `queue.h` / `queue.c` | circular queue of free ambulances |
+| `hash.h` / `hash.c` | victim table with chaining |
+| `graph.h` / `graph.c` | adjacency list, Dijkstra, nearest rescue centre |
+| `render.h` / `render.c` | the ASCII city map canvas |
+| `dispatch.c` | menu actions and the full dispatch cycle |
 | `main.c` | menu loop |
 
-## Data structures
+## One dispatch cycle
 
-| Kaam | Structure | Time |
-|---|---|---|
-| register request | max-heap push | O(log n) |
-| sabse critical nikalna | max-heap pop | O(log n) |
-| ambulance lena / wapas karna | circular queue | O(1) |
-| victim lookup | hash table, chaining | O(1) average |
-| fastest route | Dijkstra + min-heap | O((V+E) log V) |
-| map redraw | 2D char canvas | O(ROWS*COLS + E) |
+| Step | Operation | Structure | Time |
+|---|---|---|---|
+| 1 | `hp_pop` picks the most critical request | max-heap | O(log n) |
+| 2 | `q_dequeue` takes a free ambulance | circular queue | O(1) |
+| 3 | `nearest_center` finds the closest centre | graph + Dijkstra | O((V+E) log V) |
+| 4 | `get_path` rebuilds the route | parent array | O(V) |
+| 5 | `map_draw` highlights it on screen | 2D canvas | O(ROWS·COLS + E) |
+| 6 | `ht_update_status` updates the victim record | hash table | O(1) average |
+| 7 | `q_enqueue` returns the ambulance | circular queue | O(1) |
 
-Ek pura dispatch cycle O((V+E) log V) ka hai, kyunki routing sabse bhaari step hai.
+The whole cycle is O((V+E) log V) because the routing step dominates.
 
 ## Design decisions
 
-**Circular queue** full vs empty ke liye `count` variable use karti hai, ek slot
-sacrifice karne wala tareeka nahi. Isliye saare MAX_AMB slots usable hain.
+**Circular queue, full versus empty.** A `count` variable is used rather than
+sacrificing a slot, so all MAX_AMB slots are usable.
 
-**Heap** ka order `better()` function decide karta hai - zyada severity pehle,
-same severity pe purana timestamp pehle. Isliye koi request starve nahi hoti.
+**Heap ordering.** A single `better()` function decides everything: higher severity
+first, and on a tie the earlier timestamp wins. That is why no request starves.
 
-**TABLE_SIZE 11** prime hai, taaki IDs buckets mein achhe se phail jaayein.
+**TABLE_SIZE is 11, a prime**, so IDs sharing common factors still spread across
+buckets instead of clustering into a few chains.
 
-**Adjacency list** use ki hai matrix nahi, kyunki city sparse hai - har junction
-sirf 3-4 road se judta hai.
+**Adjacency list, not a matrix.** Each junction touches only three or four roads,
+so a 15×15 matrix would be mostly zeros. The list is O(V+E).
 
-**Lazy deletion** Dijkstra mein - decrease-key implement nahi kiya. Behtar distance
-dobara push kar dete hain aur purani copy pop hone pe `done[]` check se skip ho jaati hai.
+**Lazy deletion in Dijkstra.** `decrease-key` is never implemented. A better distance
+is simply pushed again, and when the stale copy pops, `done[]` is already set so it
+is skipped.
 
-**Screen coordinates weights nahi hain.** `node_pos[]` sirf `render.c` mein hai,
-`graph.c` use kabhi nahi padhta. Isliye choti dikhne wali road ka weight 9 ho sakta hai.
+**Screen coordinates are not weights.** `node_pos[]` lives only in `render.c` and
+`graph.c` never reads it. A road that looks short on screen can still cost 9 minutes.
 
-**Ambulance call pe rehti hai** jab tak option 3 se wapas na laayi jaaye. Agar wo
-turant free ho jaati to "no free ambulance" wala case kabhi chalta hi nahi.
+**An ambulance stays out until it reports back.** Dispatch marks the victim
+DISPATCHED and removes the ambulance from the ring; option 3 brings it back and marks
+the victim RESCUED. Re-enqueuing immediately would make the no-free-ambulance branch
+unreachable.
 
-**Koi free ambulance na ho to peek, pop nahi.** `hp_top()` use hota hai taaki sabse
-critical request heap pe bani rahe aur kho na jaaye.
+**No free ambulance means peek, not pop.** `hp_top()` is used so the most critical
+request stays on the heap instead of being thrown away.
 
-## Abhi nahi kiya
+## Not implemented
 
-Blocked roads aur re-routing, rescue centre ki capacity limit, file mein logging
-aur reload, aur route pe ambulance ka animation.
+Blocked roads with re-routing, rescue centre capacity limits, logging rescues to a
+file and reloading on startup, and animating the ambulance along the route.
